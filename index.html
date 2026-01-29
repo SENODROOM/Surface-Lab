@@ -5,14 +5,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="shortcut icon" href="Logo/icon.png" type="image/x-icon">
-    <title>GraphSpace - 3D Surface Explorer</title>
+    <title>GraphSpace - Advanced 3D Surface Explorer</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 
 <body>
     <div class="app-container">
-        <!-- Sidebar -->
-        <div class="sidebar">
+        <!-- Left Sidebar -->
+        <div class="sidebar sidebar-left">
             <!-- Header -->
             <div class="sidebar-header">
                 <div class="logo">
@@ -173,9 +173,275 @@
                         <span class="stat-label">Surfaces:</span>
                         <span class="stat-value" id="stat-surfaces">0</span>
                     </div>
+                    <button class="btn-icon-header" onclick="toggleRightPanel()" title="Toggle Analysis Panel">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="18" height="18" rx="2"></rect>
+                            <line x1="15" y1="3" x2="15" y2="21"></line>
+                        </svg>
+                    </button>
                 </div>
             </div>
             <canvas id="canvas3d"></canvas>
+        </div>
+
+        <!-- Right Sidebar (Analysis Panel) -->
+        <div class="sidebar sidebar-right" id="right-panel">
+            <!-- Analysis Tools Header -->
+            <div class="sidebar-header">
+                <div class="panel-title">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                    </svg>
+                    <span>Analysis & Tools</span>
+                </div>
+                <button class="btn-icon" onclick="toggleRightPanel()" title="Close Panel">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+
+            <div class="right-panel-content">
+                <!-- Surface Analysis -->
+                <div class="section">
+                    <button class="section-toggle" onclick="toggleSection('analysis')">
+                        <span>📊 Surface Analysis</span>
+                        <svg class="toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                        </svg>
+                    </button>
+                    <div class="section-content" id="analysis-content">
+                        <div class="analysis-controls">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="show-critical-points" onchange="toggleCriticalPoints()">
+                                <span>Show Critical Points</span>
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="show-contours" onchange="toggleContours()">
+                                <span>Show Contour Lines</span>
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="show-normals" onchange="toggleNormals()">
+                                <span>Show Normal Vectors</span>
+                            </label>
+                        </div>
+                        <div class="analysis-results" id="analysis-results">
+                            <div class="analysis-card">
+                                <div class="analysis-label">Surface Area (approx)</div>
+                                <div class="analysis-value" id="surface-area">—</div>
+                            </div>
+                            <div class="analysis-card">
+                                <div class="analysis-label">Volume Under Surface</div>
+                                <div class="analysis-value" id="surface-volume">—</div>
+                            </div>
+                            <div class="analysis-card">
+                                <div class="analysis-label">Min/Max Z-Value</div>
+                                <div class="analysis-value" id="z-range">—</div>
+                            </div>
+                        </div>
+                        <button class="btn-primary" onclick="analyzeSurface()">Analyze Active Surface</button>
+                    </div>
+                </div>
+
+                <!-- Visualization Options -->
+                <div class="section">
+                    <button class="section-toggle" onclick="toggleSection('visualization')">
+                        <span>🎨 Visualization</span>
+                        <svg class="toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                        </svg>
+                    </button>
+                    <div class="section-content" id="visualization-content">
+                        <div class="setting-group">
+                            <label>Rendering Mode</label>
+                            <select id="render-mode" class="select-input" onchange="changeRenderMode()">
+                                <option value="solid">Solid</option>
+                                <option value="wireframe">Wireframe</option>
+                                <option value="points">Points</option>
+                                <option value="both">Solid + Wireframe</option>
+                            </select>
+                        </div>
+                        <div class="setting-group">
+                            <label>Color Mapping</label>
+                            <select id="color-mode" class="select-input" onchange="changeColorMode()">
+                                <option value="solid">Solid Color</option>
+                                <option value="height">Height Gradient</option>
+                                <option value="rainbow">Rainbow Gradient</option>
+                                <option value="cool-warm">Cool-Warm</option>
+                            </select>
+                        </div>
+                        <div class="setting-group">
+                            <div class="slider-label">
+                                <span>Opacity</span>
+                                <span class="slider-value" id="opacity-value">100%</span>
+                            </div>
+                            <input type="range" id="surface-opacity" min="10" max="100" value="100" step="5" onchange="changeSurfaceOpacity()">
+                        </div>
+                        <div class="setting-group">
+                            <div class="slider-label">
+                                <span>Shininess</span>
+                                <span class="slider-value" id="shininess-value">30</span>
+                            </div>
+                            <input type="range" id="surface-shininess" min="0" max="100" value="30" step="5" onchange="changeSurfaceShininess()">
+                        </div>
+                        <div class="setting-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="smooth-shading" checked onchange="toggleSmoothShading()">
+                                <span>Smooth Shading</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Animation Controls -->
+                <div class="section">
+                    <button class="section-toggle" onclick="toggleSection('animation')">
+                        <span>🎬 Animation</span>
+                        <svg class="toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                        </svg>
+                    </button>
+                    <div class="section-content" id="animation-content">
+                        <div class="setting-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="auto-rotate" onchange="toggleAutoRotate()">
+                                <span>Auto-Rotate Camera</span>
+                            </label>
+                        </div>
+                        <div class="setting-group">
+                            <div class="slider-label">
+                                <span>Rotation Speed</span>
+                                <span class="slider-value" id="rotation-speed-value">1x</span>
+                            </div>
+                            <input type="range" id="rotation-speed" min="1" max="10" value="5" step="1" onchange="changeRotationSpeed()">
+                        </div>
+                        <div class="setting-group">
+                            <label>Animation Type</label>
+                            <select id="animation-type" class="select-input">
+                                <option value="none">None</option>
+                                <option value="wave">Wave Motion</option>
+                                <option value="pulse">Pulse</option>
+                                <option value="morph">Morph</option>
+                            </select>
+                        </div>
+                        <div class="animation-buttons">
+                            <button class="btn-secondary" onclick="startAnimation()">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                                </svg>
+                                Start
+                            </button>
+                            <button class="btn-secondary" onclick="stopAnimation()">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <rect x="6" y="4" width="4" height="16"></rect>
+                                    <rect x="14" y="4" width="4" height="16"></rect>
+                                </svg>
+                                Pause
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Point Evaluation -->
+                <div class="section">
+                    <button class="section-toggle" onclick="toggleSection('evaluation')">
+                        <span>📍 Point Evaluation</span>
+                        <svg class="toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                        </svg>
+                    </button>
+                    <div class="section-content" id="evaluation-content">
+                        <div class="eval-inputs">
+                            <div class="eval-input-group">
+                                <label>X:</label>
+                                <input type="number" id="eval-x" value="0" step="0.1">
+                            </div>
+                            <div class="eval-input-group">
+                                <label>Y:</label>
+                                <input type="number" id="eval-y" value="0" step="0.1">
+                            </div>
+                        </div>
+                        <button class="btn-primary" onclick="evaluatePoint()">Evaluate Point</button>
+                        <div class="eval-result" id="eval-result">
+                            <div class="eval-result-label">Result:</div>
+                            <div class="eval-result-value" id="eval-z-value">—</div>
+                        </div>
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="show-marker" onchange="toggleMarker()">
+                            <span>Show Point Marker</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Export Options -->
+                <div class="section">
+                    <button class="section-toggle" onclick="toggleSection('export')">
+                        <span>💾 Export</span>
+                        <svg class="toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                        </svg>
+                    </button>
+                    <div class="section-content" id="export-content">
+                        <div class="export-buttons">
+                            <button class="btn-export" onclick="exportScreenshot()">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                                    <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                                    <polyline points="21 15 16 10 5 21"></polyline>
+                                </svg>
+                                <span>Screenshot (PNG)</span>
+                            </button>
+                            <button class="btn-export" onclick="exportSTL()">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                                </svg>
+                                <span>3D Model (STL)</span>
+                            </button>
+                            <button class="btn-export" onclick="exportData()">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                    <polyline points="14 2 14 8 20 8"></polyline>
+                                    <line x1="12" y1="18" x2="12" y2="12"></line>
+                                    <line x1="9" y1="15" x2="15" y2="15"></line>
+                                </svg>
+                                <span>Data (CSV)</span>
+                            </button>
+                            <button class="btn-export" onclick="exportEquations()">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                    <polyline points="14 2 14 8 20 8"></polyline>
+                                    <line x1="16" y1="13" x2="8" y2="13"></line>
+                                    <line x1="16" y1="17" x2="8" y2="17"></line>
+                                    <polyline points="10 9 9 9 8 9"></polyline>
+                                </svg>
+                                <span>Equations (JSON)</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Camera Presets -->
+                <div class="section" style="margin-bottom: 20px;">
+                    <button class="section-toggle" onclick="toggleSection('camera')">
+                        <span>📷 Camera Presets</span>
+                        <svg class="toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                        </svg>
+                    </button>
+                    <div class="section-content" id="camera-content">
+                        <div class="camera-presets">
+                            <button class="btn-camera" onclick="setCameraView('front')">Front View</button>
+                            <button class="btn-camera" onclick="setCameraView('back')">Back View</button>
+                            <button class="btn-camera" onclick="setCameraView('top')">Top View</button>
+                            <button class="btn-camera" onclick="setCameraView('bottom')">Bottom View</button>
+                            <button class="btn-camera" onclick="setCameraView('left')">Left View</button>
+                            <button class="btn-camera" onclick="setCameraView('right')">Right View</button>
+                            <button class="btn-camera" onclick="setCameraView('isometric')">Isometric</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
