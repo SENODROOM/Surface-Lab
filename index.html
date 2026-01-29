@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="shortcut icon" href="Logo/icon.png" type="image/x-icon">
-    <title>GraphSpace - Advanced 3D Surface Explorer</title>
+    <title>Surface Lab</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 
@@ -23,7 +23,7 @@
                         </svg>
                     </div>
                     <div class="logo-text">
-                        <div class="logo-title">GraphSpace</div>
+                        <div class="logo-title">Surface Lab</div>
                         <div class="logo-subtitle">3D Surface Explorer</div>
                     </div>
                 </div>
@@ -275,14 +275,16 @@
                                 <span>Opacity</span>
                                 <span class="slider-value" id="opacity-value">100%</span>
                             </div>
-                            <input type="range" id="surface-opacity" min="10" max="100" value="100" step="5" oninput="changeSurfaceOpacity()">
+                            <input type="range" id="surface-opacity" min="10" max="100" value="100" step="5"
+                                oninput="changeSurfaceOpacity()">
                         </div>
                         <div class="setting-group">
                             <div class="slider-label">
                                 <span>Shininess</span>
                                 <span class="slider-value" id="shininess-value">30</span>
                             </div>
-                            <input type="range" id="surface-shininess" min="0" max="100" value="30" step="5" oninput="changeSurfaceShininess()">
+                            <input type="range" id="surface-shininess" min="0" max="100" value="30" step="5"
+                                oninput="changeSurfaceShininess()">
                         </div>
                         <div class="setting-group">
                             <label class="checkbox-label">
@@ -403,7 +405,9 @@
                             </button>
                             <button class="btn-export" onclick="exportSTL()">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                                    <path
+                                        d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z">
+                                    </path>
                                 </svg>
                                 <span>3D Model (STL)</span>
                             </button>
