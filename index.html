@@ -94,6 +94,14 @@
                     </div>
 
                     <div class="setting-group">
+                        <label>Axis Orientation</label>
+                        <select id="axis-orientation" class="select-input" onchange="changeAxisOrientation()">
+                            <option value="y-up">Y-Axis Up (Standard)</option>
+                            <option value="z-up">Z-Axis Up (Alternative)</option>
+                        </select>
+                    </div>
+
+                    <div class="setting-group">
                         <div class="slider-label">
                             <span>Resolution</span>
                             <span class="slider-value" id="res-value">50</span>
@@ -138,45 +146,45 @@
                             <div class="preset-name">Wave Grid</div>
                             <div class="preset-equation">sin(x)cos(y)</div>
                         </button>
-                        <button class="preset-card" onclick="loadPreset('exp(-(x²+y²))', '#f59e0b')">
-                            <div class="preset-name">Gaussian</div>
-                            <div class="preset-equation">exp(-(x²+y²))</div>
+                        <button class="preset-card" onclick="loadPreset('sin(x)/x*sin(y)/y', '#f59e0b')">
+                            <div class="preset-name">Sinc Function</div>
+                            <div class="preset-equation">sin(x)/x·sin(y)/y</div>
                         </button>
-                        <button class="preset-card" onclick="loadPreset('cos(√(x²+y²))/(1+0.1(x²+y²))', '#06b6d4')">
-                            <div class="preset-name">Mexican Hat</div>
-                            <div class="preset-equation">cos(√(x²+y²))/(1+0.1(x²+y²))</div>
+                        <button class="preset-card" onclick="loadPreset('exp(-(x²+y²))', '#06b6d4')">
+                            <div class="preset-name">Gaussian</div>
+                            <div class="preset-equation">e^(-(x²+y²))</div>
                         </button>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Canvas Area -->
+        <!-- Main Canvas Area -->
         <div class="canvas-area">
             <div class="canvas-header">
                 <div class="canvas-info">
                     <div class="info-badge">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <circle cx="12" cy="12" r="10"></circle>
-                            <line x1="12" y1="16" x2="12" y2="12"></line>
-                            <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                            <line x1="12" y1="8" x2="12" y2="12"></line>
+                            <line x1="12" y1="16" x2="12.01" y2="16"></line>
                         </svg>
-                        <span>Drag to rotate • Scroll to zoom • Shift+Drag to pan</span>
+                        <span>Drag to rotate • Shift+Drag to pan • Scroll to zoom</span>
                     </div>
                 </div>
                 <div class="canvas-stats">
                     <div class="stat-badge">
-                        <span class="stat-label">Points:</span>
-                        <span class="stat-value" id="stat-points">2,500</span>
-                    </div>
-                    <div class="stat-badge">
                         <span class="stat-label">Surfaces:</span>
                         <span class="stat-value" id="stat-surfaces">0</span>
                     </div>
+                    <div class="stat-badge">
+                        <span class="stat-label">Points:</span>
+                        <span class="stat-value" id="stat-points">0</span>
+                    </div>
                     <button class="btn-icon-header" onclick="toggleRightPanel()" title="Toggle Analysis Panel">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <rect x="3" y="3" width="18" height="18" rx="2"></rect>
-                            <line x1="15" y1="3" x2="15" y2="21"></line>
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                            <line x1="9" y1="3" x2="9" y2="21"></line>
                         </svg>
                     </button>
                 </div>
@@ -186,20 +194,13 @@
 
         <!-- Right Sidebar (Analysis Panel) -->
         <div class="sidebar sidebar-right" id="right-panel">
-            <!-- Analysis Tools Header -->
             <div class="sidebar-header">
                 <div class="panel-title">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
                     </svg>
-                    <span>Analysis & Tools</span>
+                    <span>Analysis & Visualization</span>
                 </div>
-                <button class="btn-icon" onclick="toggleRightPanel()" title="Close Panel">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <line x1="18" y1="6" x2="6" y2="18"></line>
-                        <line x1="6" y1="6" x2="18" y2="18"></line>
-                    </svg>
-                </button>
             </div>
 
             <div class="right-panel-content">
@@ -244,7 +245,7 @@
                     </div>
                 </div>
 
-                <!-- Visualization Options -->
+                <!-- Visualization Mode -->
                 <div class="section">
                     <button class="section-toggle" onclick="toggleSection('visualization')">
                         <span>🎨 Visualization</span>
@@ -254,21 +255,19 @@
                     </button>
                     <div class="section-content" id="visualization-content">
                         <div class="setting-group">
-                            <label>Rendering Mode</label>
+                            <label>Render Mode</label>
                             <select id="render-mode" class="select-input" onchange="changeRenderMode()">
                                 <option value="solid">Solid</option>
                                 <option value="wireframe">Wireframe</option>
                                 <option value="points">Points</option>
-                                <option value="both">Solid + Wireframe</option>
                             </select>
                         </div>
                         <div class="setting-group">
-                            <label>Color Mapping</label>
+                            <label>Color Mode</label>
                             <select id="color-mode" class="select-input" onchange="changeColorMode()">
                                 <option value="solid">Solid Color</option>
                                 <option value="height">Height Gradient</option>
-                                <option value="rainbow">Rainbow Gradient</option>
-                                <option value="cool-warm">Cool-Warm</option>
+                                <option value="slope">Slope</option>
                             </select>
                         </div>
                         <div class="setting-group">
@@ -276,14 +275,14 @@
                                 <span>Opacity</span>
                                 <span class="slider-value" id="opacity-value">100%</span>
                             </div>
-                            <input type="range" id="surface-opacity" min="10" max="100" value="100" step="5" onchange="changeSurfaceOpacity()">
+                            <input type="range" id="surface-opacity" min="10" max="100" value="100" step="5" oninput="changeSurfaceOpacity()">
                         </div>
                         <div class="setting-group">
                             <div class="slider-label">
                                 <span>Shininess</span>
                                 <span class="slider-value" id="shininess-value">30</span>
                             </div>
-                            <input type="range" id="surface-shininess" min="0" max="100" value="30" step="5" onchange="changeSurfaceShininess()">
+                            <input type="range" id="surface-shininess" min="0" max="100" value="30" step="5" oninput="changeSurfaceShininess()">
                         </div>
                         <div class="setting-group">
                             <label class="checkbox-label">
@@ -294,28 +293,38 @@
                     </div>
                 </div>
 
-                <!-- Animation Controls -->
+                <!-- Auto Rotation -->
+                <div class="section">
+                    <button class="section-toggle" onclick="toggleSection('rotation')">
+                        <span>🔄 Auto Rotation</span>
+                        <svg class="toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                        </svg>
+                    </button>
+                    <div class="section-content" id="rotation-content">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="auto-rotate" onchange="toggleAutoRotate()">
+                            <span>Enable Auto Rotation</span>
+                        </label>
+                        <div class="setting-group">
+                            <div class="slider-label">
+                                <span>Speed</span>
+                                <span class="slider-value" id="rotation-speed-value">1.0x</span>
+                            </div>
+                            <input type="range" id="rotation-speed" min="1" max="20" value="5" step="1">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Animation -->
                 <div class="section">
                     <button class="section-toggle" onclick="toggleSection('animation')">
-                        <span>🎬 Animation</span>
+                        <span>▶️ Animation</span>
                         <svg class="toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <polyline points="6 9 12 15 18 9"></polyline>
                         </svg>
                     </button>
                     <div class="section-content" id="animation-content">
-                        <div class="setting-group">
-                            <label class="checkbox-label">
-                                <input type="checkbox" id="auto-rotate" onchange="toggleAutoRotate()">
-                                <span>Auto-Rotate Camera</span>
-                            </label>
-                        </div>
-                        <div class="setting-group">
-                            <div class="slider-label">
-                                <span>Rotation Speed</span>
-                                <span class="slider-value" id="rotation-speed-value">1x</span>
-                            </div>
-                            <input type="range" id="rotation-speed" min="1" max="10" value="5" step="1" onchange="changeRotationSpeed()">
-                        </div>
                         <div class="setting-group">
                             <label>Animation Type</label>
                             <select id="animation-type" class="select-input">

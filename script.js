@@ -3,6 +3,7 @@ let scene, camera, renderer;
 let showGrid = true;
 let showAxes = true;
 let gridHelper, axesHelper;
+let currentZoomLevel = 1.0;  // Track zoom level for dynamic axis scaling
 
 // Equation management
 let equations = [];
@@ -27,6 +28,7 @@ let colorMode = 'solid';
 let surfaceOpacity = 1.0;
 let surfaceShininess = 30;
 let smoothShading = true;
+let axisOrientation = 'y-up'; // 'y-up' or 'z-up'
 
 // Color palette for equations
 const colorPalette = [
@@ -54,6 +56,35 @@ const functionSuggestions = [
 // Autocomplete state
 let currentSuggestions = [];
 let autocompleteIndex = -1;
+
+// Toast notification system
+function showToast(message, type = 'info') {
+    // Remove existing toast if any
+    const existingToast = document.querySelector('.toast-notification');
+    if (existingToast) {
+        existingToast.remove();
+    }
+    
+    const toast = document.createElement('div');
+    toast.className = `toast-notification toast-${type}`;
+    toast.innerHTML = `
+        <div class="toast-icon">
+            ${type === 'error' ? '⚠️' : type === 'success' ? '✓' : 'ℹ️'}
+        </div>
+        <div class="toast-message">${message}</div>
+    `;
+    
+    document.body.appendChild(toast);
+    
+    // Trigger animation
+    setTimeout(() => toast.classList.add('show'), 10);
+    
+    // Auto remove after 3 seconds
+    setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+}
 
 function init() {
     const canvas = document.getElementById('canvas3d');
@@ -90,13 +121,8 @@ function init() {
     directionalLight2.position.set(-10, -5, -10);
     scene.add(directionalLight2);
 
-    // Grid
-    gridHelper = new THREE.GridHelper(20, 20, 0x2a2a3f, 0x1a1a2f);
-    scene.add(gridHelper);
-
-    // Axes
-    axesHelper = new THREE.AxesHelper(8);
-    scene.add(axesHelper);
+    // Grid with dynamic sizing
+    updateGridAndAxes();
 
     // Controls
     setupControls();
@@ -138,6 +164,29 @@ function init() {
 
     // Animation loop
     animate();
+}
+
+// Update grid and axes based on zoom level
+function updateGridAndAxes() {
+    // Remove existing grid and axes
+    if (gridHelper) scene.remove(gridHelper);
+    if (axesHelper) scene.remove(axesHelper);
+    
+    // Calculate appropriate size based on zoom level
+    const baseSize = 20;
+    const gridSize = baseSize * currentZoomLevel;
+    const gridDivisions = Math.max(10, Math.min(40, Math.round(20 * currentZoomLevel)));
+    
+    // Create new grid with dynamic size
+    gridHelper = new THREE.GridHelper(gridSize, gridDivisions, 0x2a2a3f, 0x1a1a2f);
+    gridHelper.visible = showGrid;
+    scene.add(gridHelper);
+    
+    // Create new axes with dynamic size
+    const axesSize = Math.max(5, 8 * currentZoomLevel);
+    axesHelper = new THREE.AxesHelper(axesSize);
+    axesHelper.visible = showAxes;
+    scene.add(axesHelper);
 }
 
 function addEquation() {
@@ -210,7 +259,6 @@ function setActiveEquation(id) {
 function handleEquationInput(id, value) {
     const equation = equations.find(eq => eq.id === id);
     if (equation) {
-        // Store the raw value
         equation.expression = value;
         handleAutocomplete(document.querySelector(`.equation-card[data-id="${id}"] .equation-input`));
     }
@@ -243,96 +291,34 @@ function handleEquationKeydown(event, id) {
     }
 }
 
-function deleteEquation(id) {
-    const equation = equations.find(eq => eq.id === id);
-    if (equation && equation.mesh) {
-        scene.remove(equation.mesh);
-    }
-    
-    equations = equations.filter(eq => eq.id !== id);
-    
-    const card = document.querySelector(`.equation-card[data-id="${id}"]`);
-    if (card) {
-        card.remove();
-    }
-    
-    updateSurfaceCount();
-}
-
-function toggleEquationVisibility(id) {
-    const equation = equations.find(eq => eq.id === id);
-    if (equation) {
-        equation.visible = !equation.visible;
-        if (equation.mesh) {
-            equation.mesh.visible = equation.visible;
-        }
-        
-        const colorBtn = document.querySelector(`.equation-card[data-id="${id}"] .color-indicator`);
-        if (colorBtn) {
-            colorBtn.style.opacity = equation.visible ? '1' : '0.3';
-        }
-    }
-}
-
 function updateEquationSurface(id) {
     const equation = equations.find(eq => eq.id === id);
     if (!equation) return;
     
-    const input = document.querySelector(`.equation-card[data-id="${id}"] .equation-input`);
     const errorDiv = document.getElementById(`error-${id}`);
-    
-    input.classList.remove('input-error');
-    errorDiv.textContent = '';
-    
-    if (!equation.expression.trim()) {
-        if (equation.mesh) {
-            scene.remove(equation.mesh);
-            equation.mesh = null;
-        }
-        updateStats();
-        return;
-    }
+    const input = document.querySelector(`.equation-card[data-id="${id}"] .equation-input`);
     
     try {
-        // Test the evaluator first with multiple test points
-        const testEval = createEvaluator(equation.expression);
-        
-        // Test with several points to ensure validity
-        const testPoints = [[0, 0], [1, 1], [-1, -1], [0.5, 0.5]];
-        let validResults = 0;
-        
-        for (const [tx, ty] of testPoints) {
-            try {
-                const result = testEval(tx, ty);
-                if (isFinite(result)) {
-                    validResults++;
-                }
-            } catch (e) {
-                // Point failed, but that's ok if some points work
-            }
-        }
-        
-        // Need at least one valid result
-        if (validResults === 0) {
-            throw new Error('Expression produces no valid values');
-        }
-        
         // Remove old mesh
         if (equation.mesh) {
             scene.remove(equation.mesh);
+            equation.mesh.geometry.dispose();
+            equation.mesh.material.dispose();
         }
         
-        // Create surface
-        const surface = createSurface(equation.expression, equation.color);
-        equation.mesh = surface;
-        scene.add(surface);
+        // Create new surface
+        const mesh = createSurface(equation.expression, equation.color);
+        equation.mesh = mesh;
+        scene.add(mesh);
+        
+        // Clear error
+        input.classList.remove('input-error');
+        errorDiv.textContent = '';
         
         updateStats();
     } catch (error) {
         input.classList.add('input-error');
-        const errorMessage = error.message || 'Invalid expression';
-        errorDiv.textContent = errorMessage;
-        console.error('Expression error for equation', id, ':', error);
+        errorDiv.textContent = error.message || 'Invalid expression';
     }
 }
 
@@ -343,241 +329,213 @@ function createSurface(expression, color) {
     const ymax = parseFloat(document.getElementById('ymax').value);
     const resolution = parseInt(document.getElementById('resolution').value);
     
-    const geometry = new THREE.PlaneGeometry(
-        xmax - xmin,
-        ymax - ymin,
-        resolution,
-        resolution
-    );
+    const geometry = new THREE.BufferGeometry();
+    const vertices = [];
+    const indices = [];
+    const colors = [];
     
-    const positions = geometry.attributes.position;
-    const evaluator = createEvaluator(expression);
-    
-    // Create colors for height gradient
-    const colors = new Float32Array(positions.count * 3);
+    // Generate vertices
     let minZ = Infinity;
     let maxZ = -Infinity;
     
-    for (let i = 0; i < positions.count; i++) {
-        const x = positions.getX(i);
-        const y = positions.getY(i);
-        
-        const actualX = xmin + (x / (xmax - xmin) + 0.5) * (xmax - xmin);
-        const actualY = ymin + (y / (ymax - ymin) + 0.5) * (ymax - ymin);
-        
-        try {
-            const z = evaluator(actualX, actualY);
+    for (let i = 0; i <= resolution; i++) {
+        for (let j = 0; j <= resolution; j++) {
+            const x = xmin + (xmax - xmin) * i / resolution;
+            const y = ymin + (ymax - ymin) * j / resolution;
+            const z = evaluateExpression(expression, x, y);
+            
+            // Handle invalid values (NaN, Infinity)
+            const validZ = isFinite(z) ? z : 0;
+            
+            // Position vertices based on axis orientation
+            if (axisOrientation === 'z-up') {
+                // Z-up: x, y are horizontal, z is vertical
+                vertices.push(x, y, validZ);
+            } else {
+                // Y-up (default): x, z are horizontal, y is vertical
+                vertices.push(x, validZ, y);
+            }
+            
             if (isFinite(z)) {
-                positions.setZ(i, z);
                 minZ = Math.min(minZ, z);
                 maxZ = Math.max(maxZ, z);
-            } else {
-                positions.setZ(i, 0);
             }
-        } catch (e) {
-            positions.setZ(i, 0);
         }
     }
     
-    // Apply color mapping
-    if (colorMode === 'height' || colorMode === 'rainbow' || colorMode === 'cool-warm') {
-        for (let i = 0; i < positions.count; i++) {
-            const z = positions.getZ(i);
-            const t = maxZ !== minZ ? (z - minZ) / (maxZ - minZ) : 0.5;
+    // Generate indices for triangles
+    for (let i = 0; i < resolution; i++) {
+        for (let j = 0; j < resolution; j++) {
+            const a = i * (resolution + 1) + j;
+            const b = i * (resolution + 1) + (j + 1);
+            const c = (i + 1) * (resolution + 1) + j;
+            const d = (i + 1) * (resolution + 1) + (j + 1);
             
-            let r, g, b;
+            indices.push(a, b, d);
+            indices.push(a, d, c);
+        }
+    }
+    
+    // Generate colors based on height
+    if (colorMode === 'height' || colorMode === 'slope') {
+        const colorObj = new THREE.Color(color);
+        const zRange = maxZ - minZ;
+        
+        for (let i = 0; i < vertices.length; i += 3) {
+            const z = vertices[i + 1];
+            let t;
+            
             if (colorMode === 'height') {
-                const baseColor = new THREE.Color(color);
-                r = baseColor.r * (0.5 + t * 0.5);
-                g = baseColor.g * (0.5 + t * 0.5);
-                b = baseColor.b * (0.5 + t * 0.5);
-            } else if (colorMode === 'rainbow') {
-                const hue = t * 0.7; // 0 to 0.7 (red to blue)
-                const col = new THREE.Color().setHSL(hue, 1, 0.5);
-                r = col.r;
-                g = col.g;
-                b = col.b;
-            } else { // cool-warm
-                r = t;
-                g = 0.5;
-                b = 1 - t;
+                t = zRange > 0 ? (z - minZ) / zRange : 0.5;
+            } else {
+                // Slope coloring
+                const idx = Math.floor(i / 3);
+                const row = Math.floor(idx / (resolution + 1));
+                const col = idx % (resolution + 1);
+                
+                let slope = 0;
+                if (row > 0 && row < resolution && col > 0 && col < resolution) {
+                    const dzdx = vertices[i + 3] - vertices[i - 3];
+                    const dzdy = vertices[i + (resolution + 1) * 3 + 1] - vertices[i - (resolution + 1) * 3 + 1];
+                    slope = Math.sqrt(dzdx * dzdx + dzdy * dzdy);
+                }
+                
+                t = Math.min(slope / 2, 1);
             }
             
-            colors[i * 3] = r;
-            colors[i * 3 + 1] = g;
-            colors[i * 3 + 2] = b;
+            const r = colorObj.r + (1 - colorObj.r) * t;
+            const g = colorObj.g + (0.2 - colorObj.g) * t;
+            const b = colorObj.b + (1 - colorObj.b) * t;
+            
+            colors.push(r, g, b);
         }
-        geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+        
+        geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
     }
     
-    // Ensure geometry is properly indexed
-    if (!geometry.index) {
-        geometry = geometry.toNonIndexed();
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+    geometry.setIndex(indices);
+    
+    if (smoothShading) {
+        geometry.computeVertexNormals();
     }
     
-    geometry.computeVertexNormals();
-    positions.needsUpdate = true;
-    
-    // Create material based on settings
+    // Material
     let material;
-    if (renderMode === 'points') {
-        material = new THREE.PointsMaterial({
-            color: new THREE.Color(color),
-            size: 0.1,
-            vertexColors: colorMode !== 'solid'
-        });
-        return new THREE.Points(geometry, material);
-    } else if (renderMode === 'wireframe') {
+    if (renderMode === 'wireframe') {
         material = new THREE.MeshBasicMaterial({
-            color: new THREE.Color(color),
+            color: color,
             wireframe: true,
-            transparent: surfaceOpacity < 1,
-            opacity: surfaceOpacity,
-            vertexColors: colorMode !== 'solid'
+            transparent: true,
+            opacity: surfaceOpacity
+        });
+    } else if (renderMode === 'points') {
+        material = new THREE.PointsMaterial({
+            color: color,
+            size: 0.1,
+            transparent: true,
+            opacity: surfaceOpacity
         });
     } else {
+        const useVertexColors = colorMode === 'height' || colorMode === 'slope';
         material = new THREE.MeshPhongMaterial({
-            color: new THREE.Color(color),
+            color: useVertexColors ? 0xffffff : color,
+            vertexColors: useVertexColors,
             shininess: surfaceShininess,
-            side: THREE.DoubleSide,
-            flatShading: !smoothShading,
-            transparent: surfaceOpacity < 1,
+            transparent: true,
             opacity: surfaceOpacity,
-            vertexColors: colorMode !== 'solid'
+            side: THREE.DoubleSide,
+            flatShading: !smoothShading
         });
-        
-        if (renderMode === 'both') {
-            const mesh = new THREE.Mesh(geometry, material);
-            const wireframe = new THREE.LineSegments(
-                new THREE.WireframeGeometry(geometry),
-                new THREE.LineBasicMaterial({ color: 0x000000, opacity: 0.3, transparent: true })
-            );
-            mesh.add(wireframe);
-            return mesh;
-        }
     }
     
-    return new THREE.Mesh(geometry, material);
+    const mesh = renderMode === 'points' ? new THREE.Points(geometry, material) : new THREE.Mesh(geometry, material);
+    return mesh;
 }
 
-function preprocessExpression(expr) {
-    // Normalize the expression
-    expr = expr.trim();
+function evaluateExpression(expr, x, y) {
+    // Replace mathematical symbols in specific order to avoid conflicts
+    let code = expr
+        // First, handle superscripts and special characters
+        .replace(/²/g, '**2')
+        .replace(/³/g, '**3')
+        .replace(/π/g, 'Math.PI')
+        .replace(/\^/g, '**')
+        // Handle square root symbol BEFORE function replacements
+        .replace(/√\(/g, 'SQRT_PLACEHOLDER(')  // Temporary placeholder
+        .replace(/√/g, 'SQRT_PLACEHOLDER')
+        // Replace special arc functions first (before sin, cos, tan)
+        .replace(/asin\(/g, 'Math.asin(')
+        .replace(/acos\(/g, 'Math.acos(')
+        .replace(/atan\(/g, 'Math.atan(')
+        .replace(/sqrt\(/g, 'Math.sqrt(')
+        // Replace trig functions with parentheses
+        .replace(/sin\(/g, 'Math.sin(')
+        .replace(/cos\(/g, 'Math.cos(')
+        .replace(/tan\(/g, 'Math.tan(')
+        // Replace other functions with parentheses
+        .replace(/exp\(/g, 'Math.exp(')
+        .replace(/ln\(/g, 'Math.log(')
+        .replace(/log\(/g, 'Math.log(')
+        .replace(/abs\(/g, 'Math.abs(')
+        .replace(/floor\(/g, 'Math.floor(')
+        .replace(/ceil\(/g, 'Math.ceil(')
+        .replace(/round\(/g, 'Math.round(')
+        // Now replace the placeholder with Math.sqrt
+        .replace(/SQRT_PLACEHOLDER/g, 'Math.sqrt')
+        // Handle implicit multiplication - ENHANCED for xy notation
+        .replace(/([xy])([xy])/g, '$1*$2')  // xy becomes x*y, xx becomes x*x, yy becomes y*y
+        .replace(/(\d+)([xy])/g, '$1*$2')  // 2x becomes 2*x, 3y becomes 3*y
+        .replace(/([xy])(\d+)/g, '$1*$2')  // x2 becomes x*2
+        .replace(/\)\s*\(/g, ')*(')  // )( becomes )*(
+        .replace(/\)\s*(Math\.)/g, ')*$1')  // )Math. becomes )*Math.
+        .replace(/\)\s*([xy])/g, ')*$1')  // )x or )y becomes )*x or )*y
+        .replace(/([xy])\s*\(/g, '$1*(')  // x( or y( becomes x*( or y*(
+        .replace(/(\d)\s*(Math\.PI)/g, '$1*$2')  // 2π becomes 2*Math.PI
+        // Handle 'e' constant carefully (only as standalone, not in exp, etc.)
+        .replace(/\be\b(?!xp)/g, 'Math.E');
     
-    // Replace unicode superscripts with ^ notation
-    const superscripts = {'²': '^2', '³': '^3', '⁴': '^4', '⁵': '^5', '⁶': '^6', '⁷': '^7', '⁸': '^8', '⁹': '^9'};
-    for (const [sup, pow] of Object.entries(superscripts)) {
-        expr = expr.replace(new RegExp(sup, 'g'), pow);
-    }
-    
-    return expr;
-}
-
-function createEvaluator(expression) {
-    let expr = preprocessExpression(expression);
-    
-    // Step 1: Replace constants
-    expr = expr.replace(/π/g, 'Math.PI');
-    expr = expr.replace(/÷/g, '/');
-    expr = expr.replace(/×/g, '*');
-    
-    // Step 2: Handle square root - convert √ to Math.sqrt
-    // √(expression) -> Math.sqrt(expression)
-    expr = expr.replace(/√/g, 'Math.sqrt');
-    
-    // If sqrt doesn't have parentheses, we need to add them
-    // But Math.sqrt without () is fine as a reference
-    
-    // Step 3: Handle 'e' constant - only standalone, not in 'exp'
-    // Replace 'e' that's not part of a word
-    expr = expr.replace(/\be\b/g, 'Math.E');
-    
-    // Step 4: Replace math function names with Math.xxx
-    const functions = {
-        'sin': 'Math.sin',
-        'cos': 'Math.cos', 
-        'tan': 'Math.tan',
-        'asin': 'Math.asin',
-        'acos': 'Math.acos',
-        'atan': 'Math.atan',
-        'exp': 'Math.exp',
-        'ln': 'Math.log',
-        'log': 'Math.log',
-        'abs': 'Math.abs',
-        'sqrt': 'Math.sqrt'
-    };
-    
-    for (const [fn, mathFn] of Object.entries(functions)) {
-        // Only replace if not already Math.xxx
-        const parts = expr.split('Math.' + fn);
-        if (parts.length === 1) {
-            // No Math.xxx found, safe to replace
-            const regex = new RegExp('\\b' + fn + '\\b', 'g');
-            expr = expr.replace(regex, mathFn);
-        }
-    }
-    
-    // Step 5: Handle implicit multiplication
-    // Must be done carefully after function replacement
-    
-    // 5a. Number followed by letter: 2x, 3y, 5sin -> 2*x, 3*y, 5*sin
-    // But not 1e5 or similar scientific notation
-    expr = expr.replace(/(\d)([a-zA-Z])/g, (match, num, letter, offset) => {
-        // Check if this is scientific notation (1e5, 2e-3)
-        if (letter === 'e' || letter === 'E') {
-            const after = expr[offset + match.length];
-            if (after === '+' || after === '-' || /\d/.test(after)) {
-                return match; // Keep as is
-            }
-        }
-        return num + '*' + letter;
-    });
-    
-    // 5b. Number followed by opening paren: 2(x+1) -> 2*(x+1)
-    expr = expr.replace(/(\d)\(/g, '$1*(');
-    
-    // 5c. Closing paren followed by opening paren: )(  -> )*(
-    expr = expr.replace(/\)\(/g, ')*(');
-    
-    // 5d. Closing paren followed by number: )2 -> )*2
-    expr = expr.replace(/\)(\d)/g, ')*$1');
-    
-    // 5e. Closing paren followed by letter (variable or function): )x, )sin -> )*x, )*sin
-    expr = expr.replace(/\)([a-zA-Z])/g, ')*$1');
-    
-    // 5f. Variable followed by opening paren: x( -> x*(
-    expr = expr.replace(/([xy])\(/g, '$1*(');
-    
-    // 5g. Variable followed by variable: xy -> x*y (but allow whitespace)
-    expr = expr.replace(/([xy])([xy])/g, '$1*$2');
-    
-    // Step 6: Convert ^ to **
-    expr = expr.replace(/\^/g, '**');
-    
-    // Step 7: Build and test the function
     try {
-        const func = new Function('x', 'y', `
-            'use strict';
-            try {
-                const result = ${expr};
-                return result;
-            } catch (e) {
-                return NaN;
-            }
-        `);
+        // Create function with x and y parameters
+        const func = new Function('x', 'y', `return ${code}`);
+        const result = func(x, y);
         
-        // Test the function
-        const testVal = func(1, 1);
-        if (testVal === undefined) {
-            throw new Error('Function returns undefined');
-        }
-        
-        return func;
+        // Return 0 for invalid results instead of NaN or Infinity
+        return isFinite(result) ? result : 0;
     } catch (error) {
-        console.error('Parse error:', error);
-        console.error('Original:', expression);
-        console.error('Processed:', expr);
         throw new Error('Invalid mathematical expression');
+    }
+}
+
+function deleteEquation(id) {
+    const equation = equations.find(eq => eq.id === id);
+    if (!equation) return;
+    
+    if (equation.mesh) {
+        scene.remove(equation.mesh);
+        equation.mesh.geometry.dispose();
+        equation.mesh.material.dispose();
+    }
+    
+    equations = equations.filter(eq => eq.id !== id);
+    
+    const card = document.querySelector(`.equation-card[data-id="${id}"]`);
+    if (card) card.remove();
+    
+    updateSurfaceCount();
+    updateStats();
+}
+
+function toggleEquationVisibility(id) {
+    const equation = equations.find(eq => eq.id === id);
+    if (!equation || !equation.mesh) return;
+    
+    equation.visible = !equation.visible;
+    equation.mesh.visible = equation.visible;
+    
+    const colorIndicator = document.querySelector(`.equation-card[data-id="${id}"] .color-indicator`);
+    if (colorIndicator) {
+        colorIndicator.style.opacity = equation.visible ? '1' : '0.3';
     }
 }
 
@@ -587,6 +545,23 @@ function updateAllSurfaces() {
             updateEquationSurface(eq.id);
         }
     });
+}
+
+function loadPreset(expression, color) {
+    if (equations.length === 0) {
+        addEquation();
+    }
+    
+    const lastEquation = equations[equations.length - 1];
+    lastEquation.expression = expression;
+    lastEquation.color = color;
+    
+    const input = document.querySelector(`.equation-card[data-id="${lastEquation.id}"] .equation-input`);
+    if (input) {
+        input.value = expression;
+    }
+    
+    updateEquationSurface(lastEquation.id);
 }
 
 // Autocomplete functionality
@@ -600,49 +575,50 @@ function setupGlobalAutocomplete() {
 
 function handleAutocomplete(input) {
     const value = input.value;
-    const cursorPos = input.selectionStart;
-    const beforeCursor = value.substring(0, cursorPos);
-    const match = beforeCursor.match(/[a-zA-Z]+$/);
+    const cursorPosition = input.selectionStart;
     
-    if (!match) {
+    // Get the word before cursor
+    const textBeforeCursor = value.substring(0, cursorPosition);
+    const words = textBeforeCursor.split(/[\s\+\-\*\/\(\)\^]/);
+    const currentWord = words[words.length - 1].toLowerCase();
+    
+    if (currentWord.length < 2) {
         hideAutocomplete();
         return;
     }
     
-    const currentWord = match[0].toLowerCase();
+    // Find matching suggestions
     const matches = functionSuggestions.filter(s => 
-        s.trigger.startsWith(currentWord)
+        s.trigger.startsWith(currentWord) && s.trigger !== currentWord
     );
     
-    if (matches.length > 0) {
-        currentSuggestions = matches;
-        autocompleteIndex = 0;
-        showAutocomplete(matches, input);
-    } else {
+    if (matches.length === 0) {
         hideAutocomplete();
+        return;
     }
+    
+    currentSuggestions = matches;
+    autocompleteIndex = 0;
+    showAutocomplete(input, matches);
 }
 
-function showAutocomplete(suggestions, input) {
+function showAutocomplete(input, suggestions) {
     const dropdown = document.getElementById('autocomplete');
     dropdown.innerHTML = '';
     
     suggestions.forEach((suggestion, index) => {
         const item = document.createElement('div');
         item.className = 'autocomplete-item';
-        if (index === autocompleteIndex) {
-            item.classList.add('active');
-        }
+        if (index === autocompleteIndex) item.classList.add('active');
         item.textContent = suggestion.display;
         item.addEventListener('click', () => applySuggestion(suggestion, activeEquationId));
         dropdown.appendChild(item);
     });
     
-    // Position dropdown
     const rect = input.getBoundingClientRect();
-    dropdown.style.top = `${rect.bottom + 4}px`;
-    dropdown.style.left = `${rect.left}px`;
-    dropdown.style.width = `${rect.width}px`;
+    dropdown.style.left = rect.left + 'px';
+    dropdown.style.top = (rect.bottom + 5) + 'px';
+    dropdown.style.width = rect.width + 'px';
     dropdown.classList.add('show');
 }
 
@@ -662,107 +638,129 @@ function hideAutocomplete() {
 
 function applySuggestion(suggestion, equationId) {
     const input = document.querySelector(`.equation-card[data-id="${equationId}"] .equation-input`);
+    if (!input) return;
+    
     const value = input.value;
-    const cursorPos = input.selectionStart;
-    const beforeCursor = value.substring(0, cursorPos);
-    const afterCursor = value.substring(cursorPos);
-    const match = beforeCursor.match(/[a-zA-Z]+$/);
+    const cursorPosition = input.selectionStart;
     
-    if (match) {
-        const wordStart = cursorPos - match[0].length;
-        const newValue = value.substring(0, wordStart) + suggestion.suggestion + afterCursor;
-        input.value = newValue;
-        
-        const equation = equations.find(eq => eq.id === equationId);
-        if (equation) {
-            equation.expression = newValue;
-        }
-        
-        const newCursorPos = wordStart + suggestion.suggestion.length - suggestion.cursorOffset;
-        input.setSelectionRange(newCursorPos, newCursorPos);
-    }
+    // Find the start of the current word
+    const textBeforeCursor = value.substring(0, cursorPosition);
+    const words = textBeforeCursor.split(/[\s\+\-\*\/\(\)\^]/);
+    const currentWord = words[words.length - 1];
+    const wordStart = cursorPosition - currentWord.length;
     
+    // Replace the current word with the suggestion
+    const newValue = value.substring(0, wordStart) + suggestion.suggestion + value.substring(cursorPosition);
+    input.value = newValue;
+    
+    // Set cursor position
+    const newCursorPos = wordStart + suggestion.suggestion.length - suggestion.cursorOffset;
+    input.setSelectionRange(newCursorPos, newCursorPos);
+    
+    // Update equation
+    handleEquationInput(equationId, newValue);
     hideAutocomplete();
     input.focus();
 }
 
-// Function keyboard
 function insertAtActive(text, cursorOffset = 0) {
     if (activeEquationId === null) return;
     
     const input = document.querySelector(`.equation-card[data-id="${activeEquationId}"] .equation-input`);
     if (!input) return;
     
-    const cursorPos = input.selectionStart;
+    const start = input.selectionStart;
+    const end = input.selectionEnd;
     const value = input.value;
-    const newValue = value.substring(0, cursorPos) + text + value.substring(cursorPos);
     
+    const newValue = value.substring(0, start) + text + value.substring(end);
     input.value = newValue;
-    const equation = equations.find(eq => eq.id === activeEquationId);
-    if (equation) {
-        equation.expression = newValue;
-    }
     
-    const newCursorPos = cursorPos + text.length - cursorOffset;
+    const newCursorPos = start + text.length - cursorOffset;
     input.setSelectionRange(newCursorPos, newCursorPos);
+    
+    handleEquationInput(activeEquationId, newValue);
     input.focus();
 }
 
-// UI toggles
+// UI Controls
 function toggleKeyboard() {
-    const content = document.getElementById('keyboard-content');
-    const section = content.closest('.section');
+    const section = document.querySelector('.keyboard-section');
     section.classList.toggle('collapsed');
 }
 
-function toggleSection(sectionId) {
-    const content = document.getElementById(`${sectionId}-content`);
-    const section = content.closest('.section');
+function toggleSection(sectionName) {
+    const section = document.getElementById(`${sectionName}-content`).parentElement;
     section.classList.toggle('collapsed');
 }
 
 function toggleRightPanel() {
     const panel = document.getElementById('right-panel');
-    const container = document.querySelector('.app-container');
-    
     panel.classList.toggle('hidden');
+    
+    const container = document.querySelector('.app-container');
     container.classList.toggle('right-panel-hidden');
-    
-    // Trigger resize to adjust canvas
-    setTimeout(() => {
-        onWindowResize();
-    }, 300);
 }
 
-// Presets
-function loadPreset(equation, color) {
-    addEquation();
-    const lastEquation = equations[equations.length - 1];
-    lastEquation.expression = equation;
-    lastEquation.color = color;
-    
-    const card = document.querySelector(`.equation-card[data-id="${lastEquation.id}"]`);
-    const input = card.querySelector('.equation-input');
-    const colorBtn = card.querySelector('.color-indicator');
-    
-    input.value = equation;
-    colorBtn.style.background = color;
-    
-    updateEquationSurface(lastEquation.id);
+// Visualization controls
+function changeRenderMode() {
+    renderMode = document.getElementById('render-mode').value;
+    updateAllSurfaces();
 }
 
-// ===== RIGHT PANEL FEATURES =====
+function changeColorMode() {
+    colorMode = document.getElementById('color-mode').value;
+    updateAllSurfaces();
+}
 
-// Surface Analysis
+function changeSurfaceOpacity() {
+    surfaceOpacity = parseFloat(document.getElementById('surface-opacity').value) / 100;
+    equations.forEach(eq => {
+        if (eq.mesh && eq.mesh.material) {
+            eq.mesh.material.opacity = surfaceOpacity;
+            eq.mesh.material.needsUpdate = true;
+        }
+    });
+}
+
+function changeSurfaceShininess() {
+    surfaceShininess = parseFloat(document.getElementById('surface-shininess').value);
+    equations.forEach(eq => {
+        if (eq.mesh && eq.mesh.material && eq.mesh.material.shininess !== undefined) {
+            eq.mesh.material.shininess = surfaceShininess;
+            eq.mesh.material.needsUpdate = true;
+        }
+    });
+}
+
+function toggleSmoothShading() {
+    smoothShading = document.getElementById('smooth-shading').checked;
+    updateAllSurfaces();
+}
+
+function changeAxisOrientation() {
+    axisOrientation = document.getElementById('axis-orientation').value;
+    
+    // Update all surfaces with new orientation
+    updateAllSurfaces();
+    
+    // Show notification
+    showToast(
+        axisOrientation === 'y-up' ? 'Y-Axis is now vertical' : 'Z-Axis is now vertical',
+        'success'
+    );
+}
+
+// Surface Analysis Functions
 function analyzeSurface() {
     if (activeEquationId === null) {
-        alert('Please select an equation first');
+        showToast('Please select an equation first', 'info');
         return;
     }
     
     const equation = equations.find(eq => eq.id === activeEquationId);
     if (!equation || !equation.mesh) {
-        alert('Please create a surface first');
+        showToast('Please create a surface first', 'info');
         return;
     }
     
@@ -780,7 +778,7 @@ function analyzeSurface() {
     const ymax = parseFloat(document.getElementById('ymax').value);
     
     for (let i = 0; i < positions.count; i++) {
-        const z = positions.getZ(i);
+        const z = positions.getY(i);  // Y is height in our coordinate system
         if (isFinite(z)) {
             minZ = Math.min(minZ, z);
             maxZ = Math.max(maxZ, z);
@@ -793,22 +791,12 @@ function analyzeSurface() {
     volume = volume * dx * dy;
     
     // Approximate surface area using triangles
-    let surfaceAreaCalc = geometry.clone();
-    if (!surfaceAreaCalc.index) {
-        surfaceAreaCalc = surfaceAreaCalc.toNonIndexed();
-        const indices = [];
-        for (let i = 0; i < positions.count; i++) {
-            indices.push(i);
-        }
-        surfaceAreaCalc.setIndex(indices);
-    }
-    
-    const index = surfaceAreaCalc.index;
+    const index = geometry.index;
     if (index) {
         for (let i = 0; i < index.count; i += 3) {
-            const i1 = index.getX ? index.getX(i) : index.array[i];
-            const i2 = index.getX ? index.getX(i + 1) : index.array[i + 1];
-            const i3 = index.getX ? index.getX(i + 2) : index.array[i + 2];
+            const i1 = index.getX(i);
+            const i2 = index.getX(i + 1);
+            const i3 = index.getX(i + 2);
             
             const a = new THREE.Vector3(
                 positions.getX(i1),
@@ -843,20 +831,24 @@ function toggleCriticalPoints() {
     const checkbox = document.getElementById('show-critical-points');
     
     // Clear existing markers
-    criticalPointMarkers.forEach(marker => scene.remove(marker));
+    criticalPointMarkers.forEach(marker => {
+        scene.remove(marker);
+        if (marker.geometry) marker.geometry.dispose();
+        if (marker.material) marker.material.dispose();
+    });
     criticalPointMarkers = [];
     
     if (!checkbox.checked) return;
     
     if (activeEquationId === null) {
-        alert('Please select an equation first');
+        showToast('Please select an equation first', 'info');
         checkbox.checked = false;
         return;
     }
     
     const equation = equations.find(eq => eq.id === activeEquationId);
     if (!equation || !equation.mesh) {
-        alert('Please create a surface first');
+        showToast('Please create a surface first', 'info');
         checkbox.checked = false;
         return;
     }
@@ -871,7 +863,7 @@ function toggleCriticalPoints() {
         let minIdx = 0, maxIdx = 0;
         
         for (let i = 0; i < positions.count; i++) {
-            const z = positions.getZ(i);
+            const z = positions.getY(i);  // Y is height in our coordinate system
             if (isFinite(z)) {
                 if (z < minZ) {
                     minZ = z;
@@ -885,11 +877,11 @@ function toggleCriticalPoints() {
         }
         
         // Add markers
-        const markerGeometry = new THREE.SphereGeometry(0.2, 16, 16);
+        const markerGeometry = new THREE.SphereGeometry(0.3, 16, 16);
         
         if (isFinite(minZ)) {
             const minMarker = new THREE.Mesh(
-                markerGeometry,
+                markerGeometry.clone(),
                 new THREE.MeshBasicMaterial({ color: 0x0000ff })
             );
             minMarker.position.set(
@@ -903,7 +895,7 @@ function toggleCriticalPoints() {
         
         if (isFinite(maxZ) && maxIdx !== minIdx) {
             const maxMarker = new THREE.Mesh(
-                markerGeometry,
+                markerGeometry.clone(),
                 new THREE.MeshBasicMaterial({ color: 0xff0000 })
             );
             maxMarker.position.set(
@@ -924,34 +916,104 @@ function toggleContours() {
     const checkbox = document.getElementById('show-contours');
     
     // Clear existing contours
-    contourLines.forEach(line => scene.remove(line));
+    contourLines.forEach(line => {
+        scene.remove(line);
+        if (line.geometry) line.geometry.dispose();
+        if (line.material) line.material.dispose();
+    });
     contourLines = [];
     
     if (!checkbox.checked) return;
     
-    // Implementation would create contour lines
-    // This is a placeholder for the feature
-    console.log('Contour lines feature - advanced implementation needed');
-}
-
-function toggleNormals() {
-    const checkbox = document.getElementById('show-normals');
-    
-    // Clear existing normals
-    normalVectors.forEach(normal => scene.remove(normal));
-    normalVectors = [];
-    
-    if (!checkbox.checked) return;
-    
     if (activeEquationId === null) {
-        alert('Please select an equation first');
+        showToast('Please select an equation first', 'info');
         checkbox.checked = false;
         return;
     }
     
     const equation = equations.find(eq => eq.id === activeEquationId);
     if (!equation || !equation.mesh) {
-        alert('Please create a surface first');
+        showToast('Please create a surface first', 'info');
+        checkbox.checked = false;
+        return;
+    }
+    
+    try {
+        const geometry = equation.mesh.geometry;
+        const positions = geometry.attributes.position;
+        
+        // Find Z range
+        let minZ = Infinity, maxZ = -Infinity;
+        for (let i = 0; i < positions.count; i++) {
+            const z = positions.getY(i);
+            if (isFinite(z)) {
+                minZ = Math.min(minZ, z);
+                maxZ = Math.max(maxZ, z);
+            }
+        }
+        
+        // Create contour lines at different heights
+        const numContours = 10;
+        const contourStep = (maxZ - minZ) / (numContours + 1);
+        
+        for (let c = 1; c <= numContours; c++) {
+            const contourHeight = minZ + c * contourStep;
+            const contourPoints = [];
+            
+            // Sample points close to contour height
+            for (let i = 0; i < positions.count; i++) {
+                const z = positions.getY(i);
+                if (Math.abs(z - contourHeight) < contourStep * 0.2) {
+                    contourPoints.push(new THREE.Vector3(
+                        positions.getX(i),
+                        positions.getY(i),
+                        positions.getZ(i)
+                    ));
+                }
+            }
+            
+            if (contourPoints.length > 2) {
+                const contourGeometry = new THREE.BufferGeometry().setFromPoints(contourPoints);
+                const contourMaterial = new THREE.LineBasicMaterial({ 
+                    color: 0x00ff00,
+                    opacity: 0.5,
+                    transparent: true
+                });
+                const contourLine = new THREE.LineSegments(contourGeometry, contourMaterial);
+                scene.add(contourLine);
+                contourLines.push(contourLine);
+            }
+        }
+    } catch (error) {
+        console.error('Error creating contours:', error);
+        checkbox.checked = false;
+    }
+}
+
+function toggleNormals() {
+    const checkbox = document.getElementById('show-normals');
+    
+    // Clear existing normals
+    normalVectors.forEach(normal => {
+        scene.remove(normal);
+        if (normal.line && normal.line.geometry) normal.line.geometry.dispose();
+        if (normal.line && normal.line.material) normal.line.material.dispose();
+        if (normal.cone && normal.cone.geometry) normal.cone.geometry.dispose();
+        if (normal.cone && normal.cone.material) normal.cone.material.dispose();
+    });
+    normalVectors = [];
+    
+    if (!checkbox.checked) return;
+    
+    if (activeEquationId === null) {
+        showToast('Please select an equation first', 'info');
+        checkbox.checked = false;
+        return;
+    }
+    
+    const equation = equations.find(eq => eq.id === activeEquationId);
+    if (!equation || !equation.mesh) {
+        showToast('Please create a surface first', 'info');
         checkbox.checked = false;
         return;
     }
@@ -967,8 +1029,8 @@ function toggleNormals() {
         
         const normals = geometry.attributes.normal;
         
-        // Sample normals (show every 15th for better performance)
-        const step = Math.max(15, Math.floor(positions.count / 200));
+        // Sample normals (show every 20th for better performance)
+        const step = Math.max(20, Math.floor(positions.count / 150));
         
         for (let i = 0; i < positions.count; i += step) {
             const x = positions.getX(i);
@@ -1005,265 +1067,144 @@ function toggleNormals() {
     }
 }
 
-// Visualization
-function changeRenderMode() {
-    renderMode = document.getElementById('render-mode').value;
-    // Store current states
-    const currentExpressions = equations.map(eq => ({
-        id: eq.id,
-        expression: eq.expression,
-        color: eq.color,
-        visible: eq.visible
-    }));
-    
-    // Recreate all surfaces with new render mode
-    currentExpressions.forEach(eqData => {
-        if (eqData.expression) {
-            updateEquationSurface(eqData.id);
-        }
-    });
-}
-
-function changeColorMode() {
-    colorMode = document.getElementById('color-mode').value;
-    // Store current states
-    const currentExpressions = equations.map(eq => ({
-        id: eq.id,
-        expression: eq.expression,
-        color: eq.color,
-        visible: eq.visible
-    }));
-    
-    // Recreate all surfaces with new color mode
-    currentExpressions.forEach(eqData => {
-        if (eqData.expression) {
-            updateEquationSurface(eqData.id);
-        }
-    });
-}
-
-function changeSurfaceOpacity() {
-    surfaceOpacity = parseFloat(document.getElementById('surface-opacity').value) / 100;
-    equations.forEach(eq => {
-        if (eq.mesh && eq.mesh.material) {
-            eq.mesh.material.opacity = surfaceOpacity;
-            eq.mesh.material.transparent = surfaceOpacity < 1;
-            eq.mesh.material.needsUpdate = true;
-        }
-    });
-}
-
-function changeSurfaceShininess() {
-    surfaceShininess = parseFloat(document.getElementById('surface-shininess').value);
-    equations.forEach(eq => {
-        if (eq.mesh && eq.mesh.material && eq.mesh.material.shininess !== undefined) {
-            eq.mesh.material.shininess = surfaceShininess;
-            eq.mesh.material.needsUpdate = true;
-        }
-    });
-}
-
-function toggleSmoothShading() {
-    smoothShading = document.getElementById('smooth-shading').checked;
-    // Store current states
-    const currentExpressions = equations.map(eq => ({
-        id: eq.id,
-        expression: eq.expression,
-        color: eq.color,
-        visible: eq.visible
-    }));
-    
-    // Recreate all surfaces with new shading
-    currentExpressions.forEach(eqData => {
-        if (eqData.expression) {
-            updateEquationSurface(eqData.id);
-        }
-    });
-}
-
-// Animation
 function toggleAutoRotate() {
     autoRotate = document.getElementById('auto-rotate').checked;
 }
 
-function changeRotationSpeed() {
-    const value = document.getElementById('rotation-speed').value;
-    rotationSpeed = 0.001 * value;
-}
-
+// Animation controls
 function startAnimation() {
     isAnimating = true;
 }
 
 function stopAnimation() {
     isAnimating = false;
+    
+    // Reset transformations
+    equations.forEach(eq => {
+        if (eq.mesh) {
+            eq.mesh.position.set(0, 0, 0);
+            eq.mesh.scale.set(1, 1, 1);
+            eq.mesh.rotation.set(0, 0, 0);
+        }
+    });
 }
 
-// Point Evaluation
+// Point evaluation
 function evaluatePoint() {
-    if (activeEquationId === null) {
-        alert('Please select an equation first');
-        return;
-    }
-    
-    const equation = equations.find(eq => eq.id === activeEquationId);
-    if (!equation || !equation.expression) {
-        alert('Please create an equation first');
-        return;
-    }
-    
     const x = parseFloat(document.getElementById('eval-x').value);
     const y = parseFloat(document.getElementById('eval-y').value);
+    const resultDiv = document.getElementById('eval-z-value');
     
-    if (isNaN(x) || isNaN(y)) {
-        document.getElementById('eval-z-value').textContent = 'Invalid input';
+    if (equations.length === 0 || !equations[0].expression) {
+        resultDiv.textContent = '—';
         return;
     }
     
     try {
-        const evaluator = createEvaluator(equation.expression);
-        const z = evaluator(x, y);
+        const z = evaluateExpression(equations[0].expression, x, y);
+        resultDiv.textContent = isFinite(z) ? z.toFixed(4) : 'Undefined';
         
-        if (isFinite(z)) {
-            document.getElementById('eval-z-value').textContent = z.toFixed(4);
-            
-            // Update marker if visible
-            if (document.getElementById('show-marker').checked) {
-                updateEvaluationMarker(x, y, z);
-            }
-        } else {
-            document.getElementById('eval-z-value').textContent = 'Undefined';
+        // Update marker if enabled
+        if (document.getElementById('show-marker').checked) {
+            updateEvaluationMarker(x, y, z);
         }
     } catch (error) {
-        document.getElementById('eval-z-value').textContent = 'Error';
-        console.error('Evaluation error:', error);
-    }
-}
-
-function toggleMarker() {
-    const checkbox = document.getElementById('show-marker').checked;
-    
-    if (!checkbox && evaluationMarker) {
-        scene.remove(evaluationMarker);
-        evaluationMarker = null;
-        return;
-    }
-    
-    if (checkbox) {
-        const xVal = document.getElementById('eval-x').value;
-        const yVal = document.getElementById('eval-y').value;
-        if (xVal && yVal) {
-            evaluatePoint();
-        }
+        resultDiv.textContent = 'Error';
     }
 }
 
 function updateEvaluationMarker(x, y, z) {
+    // Remove old marker
     if (evaluationMarker) {
         scene.remove(evaluationMarker);
-        evaluationMarker = null;
+        evaluationMarker.geometry.dispose();
+        evaluationMarker.material.dispose();
     }
     
     if (!isFinite(z)) return;
     
-    const markerGeometry = new THREE.SphereGeometry(0.15, 16, 16);
-    const markerMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
-    evaluationMarker = new THREE.Mesh(markerGeometry, markerMaterial);
-    evaluationMarker.position.set(x, y, z);
+    // Create new marker
+    const geometry = new THREE.SphereGeometry(0.2, 16, 16);
+    const material = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+    evaluationMarker = new THREE.Mesh(geometry, material);
+    evaluationMarker.position.set(x, z, y);
     scene.add(evaluationMarker);
 }
 
-// Export Functions
-function exportScreenshot() {
-    renderer.render(scene, camera);
-    const dataURL = renderer.domElement.toDataURL('image/png');
+function toggleMarker() {
+    const showMarker = document.getElementById('show-marker').checked;
     
+    if (!showMarker && evaluationMarker) {
+        scene.remove(evaluationMarker);
+        evaluationMarker.geometry.dispose();
+        evaluationMarker.material.dispose();
+        evaluationMarker = null;
+    } else if (showMarker) {
+        evaluatePoint();
+    }
+}
+
+// Export functions
+function exportScreenshot() {
+    const dataURL = renderer.domElement.toDataURL('image/png');
     const link = document.createElement('a');
-    link.download = 'graphspace-' + Date.now() + '.png';
+    link.download = 'graphspace-screenshot-' + Date.now() + '.png';
     link.href = dataURL;
     link.click();
 }
 
 function exportSTL() {
     if (equations.length === 0 || !equations.some(eq => eq.mesh)) {
-        alert('Please create at least one surface first');
+        showToast('Please create at least one surface first', 'info');
         return;
     }
     
-    // Simple STL export
-    let stlString = 'solid GraphSpace\n';
+    let stlString = '';
     
     equations.forEach(eq => {
         if (!eq.mesh || !eq.mesh.geometry) return;
         
-        let geometry = eq.mesh.geometry;
+        const geometry = eq.mesh.geometry;
         const positions = geometry.attributes.position;
+        const indices = geometry.index;
         
-        // Ensure geometry has index
-        if (!geometry.index) {
-            geometry = geometry.clone();
-            const indices = [];
-            for (let i = 0; i < positions.count; i++) {
-                indices.push(i);
-            }
-            geometry.setIndex(indices);
-        }
-        
-        const index = geometry.index;
-        if (!index) return;
-        
-        for (let i = 0; i < index.count; i += 3) {
-            const i1 = index.getX ? index.getX(i) : index.array[i];
-            const i2 = index.getX ? index.getX(i + 1) : index.array[i + 1];
-            const i3 = index.getX ? index.getX(i + 2) : index.array[i + 2];
+        for (let i = 0; i < indices.count; i += 3) {
+            const i1 = indices.getX(i);
+            const i2 = indices.getX(i + 1);
+            const i3 = indices.getX(i + 2);
             
-            const v1 = new THREE.Vector3(
-                positions.getX(i1),
-                positions.getY(i1),
-                positions.getZ(i1)
-            );
-            const v2 = new THREE.Vector3(
-                positions.getX(i2),
-                positions.getY(i2),
-                positions.getZ(i2)
-            );
-            const v3 = new THREE.Vector3(
-                positions.getX(i3),
-                positions.getY(i3),
-                positions.getZ(i3)
-            );
+            const v1 = new THREE.Vector3(positions.getX(i1), positions.getY(i1), positions.getZ(i1));
+            const v2 = new THREE.Vector3(positions.getX(i2), positions.getY(i2), positions.getZ(i2));
+            const v3 = new THREE.Vector3(positions.getX(i3), positions.getY(i3), positions.getZ(i3));
             
-            const normal = new THREE.Vector3();
-            const cb = new THREE.Vector3();
-            const ab = new THREE.Vector3();
+            const normal = new THREE.Vector3()
+                .crossVectors(
+                    new THREE.Vector3().subVectors(v2, v1),
+                    new THREE.Vector3().subVectors(v3, v1)
+                )
+                .normalize();
             
-            cb.subVectors(v3, v2);
-            ab.subVectors(v1, v2);
-            cb.cross(ab);
-            cb.normalize();
-            
-            stlString += `  facet normal ${cb.x} ${cb.y} ${cb.z}\n`;
-            stlString += `    outer loop\n`;
-            stlString += `      vertex ${v1.x} ${v1.y} ${v1.z}\n`;
-            stlString += `      vertex ${v2.x} ${v2.y} ${v2.z}\n`;
-            stlString += `      vertex ${v3.x} ${v3.y} ${v3.z}\n`;
-            stlString += `    endloop\n`;
-            stlString += `  endfacet\n`;
+            stlString += `facet normal ${normal.x} ${normal.y} ${normal.z}\n`;
+            stlString += `  outer loop\n`;
+            stlString += `    vertex ${v1.x} ${v1.y} ${v1.z}\n`;
+            stlString += `    vertex ${v2.x} ${v2.y} ${v2.z}\n`;
+            stlString += `    vertex ${v3.x} ${v3.y} ${v3.z}\n`;
+            stlString += `  endloop\n`;
+            stlString += `endfacet\n`;
         }
     });
     
-    stlString += 'endsolid GraphSpace\n';
-    
-    const blob = new Blob([stlString], { type: 'text/plain' });
+    const fullSTL = `solid graphspace\n${stlString}endsolid graphspace\n`;
+    const blob = new Blob([fullSTL], { type: 'text/plain' });
     const link = document.createElement('a');
-    link.download = 'graphspace-' + Date.now() + '.stl';
+    link.download = 'graphspace-model-' + Date.now() + '.stl';
     link.href = URL.createObjectURL(blob);
     link.click();
 }
 
 function exportData() {
     if (equations.length === 0 || !equations.some(eq => eq.mesh)) {
-        alert('Please create at least one surface first');
+        showToast('Please create at least one surface first', 'info');
         return;
     }
     
@@ -1283,8 +1224,8 @@ function exportData() {
         
         for (let i = 0; i < positions.count; i++) {
             const x = positions.getX(i);
-            const y = positions.getY(i);
-            const z = positions.getZ(i);
+            const y = positions.getZ(i);
+            const z = positions.getY(i);
             
             csvString += `"${eq.expression}",${x.toFixed(4)},${y.toFixed(4)},${z.toFixed(4)}\n`;
         }
@@ -1352,7 +1293,7 @@ function setCameraView(view) {
     camera.lookAt(0, 0, 0);
 }
 
-// Camera and scene controls
+// Camera and scene controls with improved zoom
 function setupControls() {
     const canvas = renderer.domElement;
     let isDragging = false;
@@ -1372,10 +1313,12 @@ function setupControls() {
         const deltaY = e.clientY - previousMousePosition.y;
         
         if (isShiftDragging) {
-            const panSpeed = 0.01;
+            // Pan with dynamic speed based on zoom
+            const panSpeed = 0.01 * currentZoomLevel;
             camera.position.x -= deltaX * panSpeed;
             camera.position.y += deltaY * panSpeed;
         } else {
+            // Rotate
             const rotateSpeed = 0.005;
             const phi = Math.atan2(camera.position.z, camera.position.x);
             const theta = Math.acos(camera.position.y / Math.sqrt(
@@ -1402,22 +1345,41 @@ function setupControls() {
         isDragging = false;
     });
     
+    canvas.addEventListener('mouseleave', () => {
+        isDragging = false;
+    });
+    
+    // Improved zoom with dynamic axis scaling
     canvas.addEventListener('wheel', (e) => {
         e.preventDefault();
+        
         const zoomSpeed = 0.1;
         const radius = Math.sqrt(
             camera.position.x ** 2 + camera.position.y ** 2 + camera.position.z ** 2
         );
-        const newRadius = Math.max(3, Math.min(50, radius + e.deltaY * zoomSpeed * 0.01));
+        
+        // Zoom in/out: scroll down = zoom out (increase radius), scroll up = zoom in (decrease radius)
+        const delta = e.deltaY > 0 ? zoomSpeed : -zoomSpeed;
+        const newRadius = Math.max(3, Math.min(100, radius + delta));
         const scale = newRadius / radius;
         
         camera.position.multiplyScalar(scale);
+        
+        // Update zoom level for dynamic grid/axes scaling
+        // Base zoom level is at distance 10
+        const baseDistance = 10;
+        currentZoomLevel = newRadius / baseDistance;
+        
+        // Update grid and axes to match zoom level
+        updateGridAndAxes();
     });
 }
 
 function resetCamera() {
     camera.position.set(10, 10, 10);
     camera.lookAt(0, 0, 0);
+    currentZoomLevel = 1.0;
+    updateGridAndAxes();
 }
 
 function toggleGrid() {
@@ -1478,7 +1440,7 @@ function animate() {
             
             switch(animationType) {
                 case 'wave':
-                    eq.mesh.position.z = Math.sin(animationTime) * 0.5;
+                    eq.mesh.position.y = Math.sin(animationTime) * 0.5;
                     break;
                 case 'pulse':
                     const scale = 1 + Math.sin(animationTime * 2) * 0.1;
