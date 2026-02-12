@@ -1,0 +1,972 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Limit Calculator - Step-by-Step Solutions</title>
+
+    <!-- MathQuill CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/mathquill@0.10.1/build/mathquill.css">
+
+    <!-- KaTeX CSS for rendering -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 40px;
+            max-width: 1400px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 32px;
+            text-align: center;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 16px;
+        }
+
+        /* Demo Examples */
+        .demo-section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+        }
+
+        .demo-title {
+            font-weight: 700;
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 16px;
+        }
+
+        .demo-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 12px;
+        }
+
+        .demo-item {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            border: 2px solid #ddd;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .demo-item:hover {
+            border-color: #667eea;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+        }
+
+        .demo-item .demo-number {
+            font-size: 12px;
+            font-weight: 700;
+            color: #667eea;
+            margin-bottom: 8px;
+        }
+
+        .demo-item .demo-math {
+            font-size: 18px;
+            text-align: center;
+            padding: 10px 0;
+            min-height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Input Section */
+        .input-section {
+            background: #f8f9fa;
+            padding: 25px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+        }
+
+        .section-title {
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 18px;
+        }
+
+        .limit-builder {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            border: 3px solid #667eea;
+            margin-bottom: 20px;
+        }
+
+        .limit-display {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+            font-size: 24px;
+        }
+
+        .limit-part {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .limit-label {
+            font-weight: 700;
+            color: #667eea;
+            font-size: 28px;
+        }
+
+        .limit-arrow {
+            font-size: 28px;
+            color: #667eea;
+        }
+
+        .limit-input-inline {
+            padding: 8px 12px;
+            border: 2px solid #667eea;
+            border-radius: 6px;
+            font-size: 20px;
+            width: 120px;
+            text-align: center;
+            font-weight: 600;
+        }
+
+        .limit-input-inline:focus {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+        }
+
+        .direction-select {
+            padding: 8px 12px;
+            border: 2px solid #667eea;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            color: #667eea;
+            background: white;
+            cursor: pointer;
+        }
+
+        .function-label {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+
+        #function-field {
+            min-height: 80px;
+            padding: 20px;
+            border: 3px solid #667eea;
+            border-radius: 12px;
+            font-size: 24px;
+            background: white;
+            cursor: text;
+            transition: all 0.3s ease;
+        }
+
+        #function-field:focus-within {
+            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+        }
+
+        /* Toolbar */
+        .toolbar-section {
+            margin-top: 15px;
+        }
+
+        .toolbar-title {
+            font-weight: 700;
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .toolbar {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(70px, 1fr));
+            gap: 8px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 12px;
+        }
+
+        .toolbar button {
+            padding: 10px;
+            border: 2px solid #667eea;
+            background: white;
+            color: #667eea;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .toolbar button:hover {
+            background: #667eea;
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+
+        /* Actions */
+        .actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .actions button {
+            padding: 14px;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-calculate {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-calculate:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-clear {
+            background: #ff6b6b;
+            color: white;
+        }
+
+        .btn-clear:hover {
+            background: #ee5a52;
+            transform: translateY(-2px);
+        }
+
+        /* Result Section */
+        .result-section {
+            background: #f8f9fa;
+            padding: 25px;
+            border-radius: 12px;
+            margin-top: 20px;
+            display: none;
+        }
+
+        .result-title {
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+
+        .result-answer {
+            background: white;
+            padding: 25px;
+            border-radius: 8px;
+            border: 3px solid #51cf66;
+            margin-bottom: 20px;
+        }
+
+        .answer-label {
+            font-size: 14px;
+            color: #51cf66;
+            font-weight: 600;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .answer-value {
+            font-size: 36px;
+            color: #51cf66;
+            text-align: center;
+            font-weight: bold;
+            min-height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .steps-container {
+            background: white;
+            padding: 25px;
+            border-radius: 8px;
+            border: 2px solid #ddd;
+        }
+
+        .steps-title {
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .step-item {
+            padding: 15px;
+            margin-bottom: 12px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+
+        .step-number {
+            font-weight: 700;
+            color: #667eea;
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+
+        .step-content {
+            color: #333;
+            line-height: 1.6;
+            font-size: 15px;
+        }
+
+        .step-math {
+            background: white;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 10px 0;
+            text-align: center;
+            font-size: 20px;
+            border: 1px solid #ddd;
+        }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: #333;
+            color: white;
+            padding: 15px 25px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.3s ease;
+            z-index: 1000;
+        }
+
+        .toast.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .mq-editable-field {
+            border: none !important;
+            box-shadow: none !important;
+        }
+
+        .mq-cursor {
+            border-left: 2px solid #667eea !important;
+        }
+
+        @media (max-width: 768px) {
+            .limit-display {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .demo-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .actions {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>🔢 Limit Calculator</h1>
+        <p class="subtitle">Calculate limits mathematically with step-by-step solutions • 30 Examples Included</p>
+
+        <!-- Demo Examples -->
+        <div class="demo-section">
+            <div class="demo-title">📚 Click any example to try it:</div>
+            <div class="demo-grid" id="demo-grid"></div>
+        </div>
+
+        <!-- Input Section -->
+        <div class="input-section">
+            <div class="section-title">Build Your Limit</div>
+
+            <div class="limit-builder">
+                <div class="limit-display">
+                    <span class="limit-label">lim</span>
+                    <div class="limit-part">
+                        <input type="text" id="variable" class="limit-input-inline" value="x" placeholder="x or x,y">
+                        <span class="limit-arrow">→</span>
+                        <input type="text" id="approaches" class="limit-input-inline" value="0" placeholder="0 or 0,0">
+                    </div>
+                    <select id="direction" class="direction-select">
+                        <option value="">both sides</option>
+                        <option value="+">from right (+)</option>
+                        <option value="-">from left (−)</option>
+                    </select>
+                </div>
+
+                <div class="function-label">Enter your function:</div>
+                <div id="function-field"></div>
+
+                <div class="toolbar-section">
+                    <div class="toolbar-title">Quick Insert</div>
+                    <div class="toolbar">
+                        <button onclick="insertText('\\frac')">a/b</button>
+                        <button onclick="insertText('\\sqrt')">√x</button>
+                        <button onclick="insertText('^')">x^n</button>
+                        <button onclick="insertText('_')">x_n</button>
+                        <button onclick="insertText('\\sin')">sin</button>
+                        <button onclick="insertText('\\cos')">cos</button>
+                        <button onclick="insertText('\\tan')">tan</button>
+                        <button onclick="insertText('\\ln')">ln</button>
+                        <button onclick="insertText('\\log')">log</button>
+                        <button onclick="insertText('\\pi')">π</button>
+                        <button onclick="insertText('e')">e</button>
+                        <button onclick="insertText('\\infty')">∞</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="actions">
+                <button class="btn-calculate" onclick="calculateLimit()">
+                    🧮 Calculate Limit
+                </button>
+                <button class="btn-clear" onclick="clearAll()">
+                    🗑️ Clear All
+                </button>
+            </div>
+        </div>
+
+        <!-- Result Section -->
+        <div class="result-section" id="result-section">
+            <div class="result-title">📊 Result</div>
+            <div class="result-answer">
+                <div class="answer-label">Limit =</div>
+                <div class="answer-value" id="answer-value"></div>
+            </div>
+
+            <div class="steps-container">
+                <div class="steps-title">
+                    📝 Step-by-Step Solution
+                </div>
+                <div id="steps-content"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+    <!-- MathQuill -->
+    <script src="https://cdn.jsdelivr.net/npm/mathquill@0.10.1/build/mathquill.min.js"></script>
+
+    <!-- KaTeX -->
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+
+    <!-- Math.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.11.0/math.min.js"></script>
+
+    <script>
+        // Demo limits with pre-calculated answers
+        const demoLimits = [
+            // Limits with Two Variables (1-12)
+            { num: 1, func: "\\frac{3x^2-y^2+5}{x^2+y^2+2}", var: "x,y", approaches: "0,0", category: "Two Variables", answer: "5/2" },
+            { num: 2, func: "\\frac{x}{\\sqrt{y}}", var: "x,y", approaches: "0,4", category: "Two Variables", answer: "0" },
+            { num: 3, func: "\\sqrt{x^2+y^2}-1", var: "x,y", approaches: "3,4", category: "Two Variables", answer: "4" },
+            { num: 4, func: "\\left(\\frac{1}{x}+\\frac{1}{y}\\right)^2", var: "x,y", approaches: "-1,-3", category: "Two Variables", answer: "16/9" },
+            { num: 5, func: "\\sec x \\tan y", var: "x,y", approaches: "0,\\pi/4", category: "Two Variables", answer: "1" },
+            { num: 6, func: "\\cos\\frac{x^2+y^3}{x+y+1}", var: "x,y", approaches: "0,0", category: "Two Variables", answer: "1" },
+            { num: 7, func: "e^{x-y}", var: "x,y", approaches: "0,\\ln 2", category: "Two Variables", answer: "1/2" },
+            { num: 8, func: "\\ln|1+x^2y^2|", var: "x,y", approaches: "-1,1", category: "Two Variables", answer: "ln(2)" },
+            { num: 9, func: "\\frac{e^x\\sin x}{x}", var: "x,y", approaches: "0,0", category: "Two Variables", answer: "1" },
+            { num: 10, func: "\\cos\\sqrt{xy}", var: "x,y", approaches: "\\pi/2,0", category: "Two Variables", answer: "1" },
+            { num: 11, func: "\\frac{x\\sin y}{x^2+1}", var: "x,y", approaches: "1,\\pi/6", category: "Two Variables", answer: "1/4" },
+            { num: 12, func: "\\frac{\\cos y+1}{y-\\sin x}", var: "x,y", approaches: "\\pi/2,0", category: "Two Variables", answer: "-2" },
+            
+            // Limits of Quotients (13-24)
+            { num: 13, func: "\\frac{x^2-2xy+y^2}{x-y}", var: "x", approaches: "y", category: "Quotients", answer: "0" },
+            { num: 14, func: "\\frac{x^2-y^2}{x-y}", var: "x", approaches: "y", category: "Quotients", answer: "2y" },
+            { num: 15, func: "\\frac{xy-y-2x+2}{x-1}", var: "x", approaches: "1", category: "Quotients", answer: "y-2" },
+            { num: 16, func: "\\frac{y+4}{x^2y-xy+4x^2-4x}", var: "x", approaches: "2", category: "Quotients", answer: "1/(4y)" },
+            { num: 17, func: "\\frac{x-y+2\\sqrt{y}-2\\sqrt{y}}{\\sqrt{x}-\\sqrt{y}}", var: "x", approaches: "y", category: "Quotients", answer: "2√y" },
+            { num: 18, func: "\\frac{x+y-4}{\\sqrt{x+y}-2}", var: "x,y", approaches: "2,2", category: "Quotients", answer: "4" },
+            { num: 19, func: "\\frac{\\sqrt{2x-y}-2}{2x-y-4}", var: "x,y", approaches: "2,0", category: "Quotients", answer: "1/4" },
+            { num: 20, func: "\\frac{\\sqrt{x}-\\sqrt{y}+1}{x-y-1}", var: "x,y", approaches: "4,3", category: "Quotients", answer: "(√4 + √3)/2" },
+            { num: 21, func: "\\frac{\\sin(x^2+y^2)}{x^2+y^2}", var: "x,y", approaches: "0,0", category: "Quotients", answer: "1" },
+            { num: 22, func: "\\frac{1-\\cos(xy)}{xy}", var: "x,y", approaches: "0,0", category: "Quotients", answer: "0" },
+            { num: 23, func: "\\frac{x^3+y^3}{x+y}", var: "x", approaches: "-y", category: "Quotients", answer: "3y²/2" },
+            { num: 24, func: "\\frac{x-y}{x^4-y^4}", var: "x", approaches: "y", category: "Quotients", answer: "1/(4y³)" },
+            
+            // Limits with Three Variables (25-30)
+            { num: 25, func: "\\left(\\frac{1}{x}+\\frac{1}{y}+\\frac{1}{z}\\right)", var: "x,y,z", approaches: "3,4,5", category: "Three Variables", answer: "47/60" },
+            { num: 26, func: "\\frac{2xy+yz}{x^2+z^2}", var: "x,y,z", approaches: "-1,-1,1", category: "Three Variables", answer: "1/2" },
+            { num: 27, func: "\\sin^2 x+\\cos^2 y+\\sec^2 z", var: "x,y,z", approaches: "\\pi,0,0", category: "Three Variables", answer: "3" },
+            { num: 28, func: "\\tan^{-1}xyz", var: "x,y,z", approaches: "1/\\sqrt{3},2,2", category: "Three Variables", answer: "π/3" },
+            { num: 29, func: "ze^{-2y}\\cos 2x", var: "x,y,z", approaches: "\\pi,0,3", category: "Three Variables", answer: "-3" },
+            { num: 30, func: "\\ln\\sqrt{x^2+y^2+z^2}", var: "x,y,z", approaches: "e,0,0", category: "Three Variables", answer: "1" }
+        ];
+
+        // Initialize MathQuill
+        const MQ = MathQuill.getInterface(2);
+        let mathField;
+
+        document.addEventListener('DOMContentLoaded', function () {
+            const mathFieldSpan = document.getElementById('function-field');
+            mathField = MQ.MathField(mathFieldSpan, {
+                spaceBehavesLikeTab: true
+            });
+            mathField.focus();
+
+            renderDemoExamples();
+        });
+
+        function renderDemoExamples() {
+            const grid = document.getElementById('demo-grid');
+            
+            // Group by category
+            const categories = ['Two Variables', 'Quotients', 'Three Variables'];
+            let html = '';
+            
+            categories.forEach(category => {
+                const categoryLimits = demoLimits.filter(d => d.category === category);
+                if (categoryLimits.length > 0) {
+                    html += `
+                        <div style="grid-column: 1 / -1; margin-top: 15px; margin-bottom: 10px;">
+                            <h3 style="color: #667eea; font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">
+                                ${category}
+                            </h3>
+                        </div>
+                    `;
+                    
+                    categoryLimits.forEach(demo => {
+                        const vars = demo.var.split(',');
+                        const vals = demo.approaches.split(',');
+                        
+                        let limitNotation;
+                        if (vars.length > 1) {
+                            // Multiple variables
+                            const subscript = vars.map((v, i) => `${v} \\to ${vals[i] || vals[0]}`).join(', ');
+                            limitNotation = `\\lim_{(${subscript})} ${demo.func}`;
+                        } else {
+                            limitNotation = `\\lim_{${vars[0]} \\to ${vals[0]}} ${demo.func}`;
+                        }
+                        
+                        const demoId = `demo-${demo.num}`;
+                        
+                        html += `
+                            <div class="demo-item" onclick="loadDemo(${demo.num})">
+                                <div class="demo-number">Example ${demo.num}</div>
+                                <div class="demo-math" id="${demoId}"></div>
+                            </div>
+                        `;
+                    });
+                }
+            });
+            
+            grid.innerHTML = html;
+
+            // Render all demos with KaTeX
+            setTimeout(() => {
+                demoLimits.forEach(demo => {
+                    try {
+                        const vars = demo.var.split(',');
+                        const vals = demo.approaches.split(',');
+                        
+                        let limitNotation;
+                        if (vars.length > 1) {
+                            const subscript = vars.map((v, i) => `${v} \\to ${vals[i] || vals[0]}`).join(', ');
+                            limitNotation = `\\lim_{(${subscript})} ${demo.func}`;
+                        } else {
+                            limitNotation = `\\lim_{${vars[0]} \\to ${vals[0]}} ${demo.func}`;
+                        }
+                        
+                        katex.render(limitNotation, document.getElementById(`demo-${demo.num}`), {
+                            throwOnError: false,
+                            displayMode: true
+                        });
+                    } catch (e) {
+                        console.error('Error rendering demo', demo.num, e);
+                    }
+                });
+            }, 100);
+        }
+
+        function loadDemo(num) {
+            const demo = demoLimits.find(d => d.num === num);
+            if (!demo) return;
+
+            mathField.latex(demo.func);
+            
+            const vars = demo.var.split(',');
+            const vals = demo.approaches.split(',');
+            
+            // Load variables and approach values
+            document.getElementById('variable').value = demo.var;
+            document.getElementById('approaches').value = demo.approaches;
+            document.getElementById('direction').value = '';
+
+            mathField.focus();
+            showToast(`Loaded Example ${num} - ${demo.category}`);
+            
+            document.querySelector('.input-section').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function insertText(text) {
+            mathField.cmd(text);
+            mathField.focus();
+        }
+
+        function clearAll() {
+            mathField.latex('');
+            document.getElementById('variable').value = 'x';
+            document.getElementById('approaches').value = '0';
+            document.getElementById('direction').value = '';
+            document.getElementById('result-section').style.display = 'none';
+            mathField.focus();
+            showToast('Cleared');
+        }
+
+        function calculateLimit() {
+            const funcLatex = mathField.latex();
+            const variableInput = document.getElementById('variable').value.trim();
+            const approachesInput = document.getElementById('approaches').value.trim();
+            const direction = document.getElementById('direction').value;
+
+            if (!funcLatex) {
+                showToast('Please enter a function');
+                return;
+            }
+
+            if (!variableInput || !approachesInput) {
+                showToast('Please specify variable(s) and approach value(s)');
+                return;
+            }
+
+            try {
+                const variables = variableInput.split(',').map(v => v.trim());
+                const approachValues = approachesInput.split(',').map(v => v.trim());
+
+                // Convert LaTeX to Math.js expression
+                const expr = latexToMathJs(funcLatex);
+                console.log('Expression:', expr);
+                console.log('Variables:', variables);
+                console.log('Approaches:', approachValues);
+
+                const steps = [];
+                let answer;
+
+                // Step 1: Show original limit
+                let limitNotation;
+                if (variables.length > 1) {
+                    const subscript = variables.map((v, i) => `${v} \\to ${approachValues[i]}`).join(', ');
+                    limitNotation = `\\lim_{(${subscript})} ${funcLatex}`;
+                } else {
+                    limitNotation = `\\lim_{${variables[0]} \\to ${approachValues[0]}} ${funcLatex}`;
+                }
+
+                steps.push({
+                    title: "Step 1: Original Limit",
+                    explanation: `We need to find the limit as ${variables.join(', ')} approach ${approachValues.join(', ')}`,
+                    math: limitNotation
+                });
+
+                // Try direct substitution
+                try {
+                    const substitutions = {};
+                    variables.forEach((v, i) => {
+                        const val = evaluateSpecialValue(approachValues[i]);
+                        substitutions[v] = val;
+                    });
+
+                    const directValue = math.evaluate(expr, substitutions);
+                    
+                    if (isFinite(directValue) && !isNaN(directValue)) {
+                        steps.push({
+                            title: "Step 2: Direct Substitution",
+                            explanation: `Substituting ${variables.map((v, i) => `${v} = ${approachValues[i]}`).join(', ')} directly:`,
+                            math: `f(${approachValues.join(', ')}) = ${formatNumber(directValue)}`
+                        });
+                        
+                        answer = directValue;
+                    } else {
+                        throw new Error("Indeterminate form");
+                    }
+                } catch (e) {
+                    // Indeterminate form - use numerical approach
+                    steps.push({
+                        title: "Step 2: Direct Substitution",
+                        explanation: "Direct substitution gives an indeterminate form (0/0, ∞/∞, etc.). We'll use numerical approximation.",
+                        math: "\\text{Indeterminate form}"
+                    });
+
+                    // Numerical approximation
+                    const limitValue = numericalLimit(expr, variables, approachValues);
+                    
+                    if (limitValue !== null) {
+                        steps.push({
+                            title: "Step 3: Numerical Approximation",
+                            explanation: "Using values approaching the limit point from multiple directions:",
+                            math: `\\text{Testing values near } ${approachValues.join(', ')}`
+                        });
+
+                        answer = limitValue;
+                        
+                        steps.push({
+                            title: "Step 4: Limit Value",
+                            explanation: `The limit converges to:`,
+                            math: `${formatNumber(limitValue)}`
+                        });
+                    } else {
+                        answer = "Does not exist or requires advanced techniques";
+                        steps.push({
+                            title: "Step 3: Analysis",
+                            explanation: "This limit may not exist or requires advanced calculus techniques (L'Hôpital's rule, series expansion, etc.)",
+                            math: ""
+                        });
+                    }
+                }
+
+                // Display results
+                displayResults(answer, steps);
+
+            } catch (error) {
+                console.error('Error:', error);
+                showToast('Error: ' + error.message);
+            }
+        }
+
+        function numericalLimit(expr, variables, approachValues) {
+            try {
+                const deltas = [0.1, 0.01, 0.001, 0.0001, 0.00001];
+                const results = [];
+
+                for (let delta of deltas) {
+                    const substitutions = {};
+                    variables.forEach((v, i) => {
+                        const target = evaluateSpecialValue(approachValues[i]);
+                        substitutions[v] = target + delta;
+                    });
+
+                    try {
+                        const value = math.evaluate(expr, substitutions);
+                        if (isFinite(value) && !isNaN(value)) {
+                            results.push(value);
+                        }
+                    } catch (e) {
+                        // Skip this delta
+                    }
+                }
+
+                if (results.length >= 3) {
+                    // Check for convergence
+                    const lastThree = results.slice(-3);
+                    const avgDiff = Math.abs(lastThree[2] - lastThree[1]) + Math.abs(lastThree[1] - lastThree[0]);
+                    
+                    if (avgDiff < 0.01) {
+                        return results[results.length - 1];
+                    }
+                }
+
+                return null;
+            } catch (error) {
+                console.error('Numerical limit error:', error);
+                return null;
+            }
+        }
+
+        function evaluateSpecialValue(str) {
+            // Handle special values like π, e, fractions, etc.
+            str = str.replace(/\\pi/g, 'pi').replace(/π/g, 'pi');
+            str = str.replace(/\\ln/g, 'log');
+            str = str.replace(/\\frac\{([^}]+)\}\{([^}]+)\}/g, '($1)/($2)');
+            str = str.replace(/\\sqrt\{([^}]+)\}/g, 'sqrt($1)');
+            
+            try {
+                return math.evaluate(str);
+            } catch (e) {
+                return parseFloat(str) || 0;
+            }
+        }
+
+        function formatNumber(num) {
+            if (Math.abs(num) < 0.0001 && num !== 0) {
+                return num.toExponential(4);
+            } else if (Math.abs(num) > 10000) {
+                return num.toExponential(4);
+            } else {
+                return parseFloat(num.toPrecision(8));
+            }
+        }
+
+        function displayResults(answer, steps) {
+            const resultSection = document.getElementById('result-section');
+            resultSection.style.display = 'block';
+
+            // Display answer
+            const answerValue = document.getElementById('answer-value');
+            if (typeof answer === 'number') {
+                answerValue.textContent = formatNumber(answer);
+            } else {
+                answerValue.textContent = answer;
+            }
+
+            // Display steps
+            const stepsHTML = steps.map((step, index) => {
+                let mathHTML = '';
+                if (step.math) {
+                    const mathId = `step-math-${index}`;
+                    mathHTML = `<div class="step-math" id="${mathId}"></div>`;
+                    setTimeout(() => {
+                        try {
+                            katex.render(step.math, document.getElementById(mathId), {
+                                throwOnError: false,
+                                displayMode: true
+                            });
+                        } catch (e) {
+                            document.getElementById(mathId).textContent = step.math;
+                        }
+                    }, 10);
+                }
+
+                return `
+                    <div class="step-item">
+                        <div class="step-number">${step.title}</div>
+                        <div class="step-content">${step.explanation}</div>
+                        ${mathHTML}
+                    </div>
+                `;
+            }).join('');
+
+            document.getElementById('steps-content').innerHTML = stepsHTML;
+
+            resultSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            showToast('Limit calculated!');
+        }
+
+        function latexToMathJs(latex) {
+            let expr = latex;
+
+            // Handle fractions
+            expr = expr.replace(/\\frac\{([^}]+)\}\{([^}]+)\}/g, '(($1)/($2))');
+
+            // Handle square roots
+            expr = expr.replace(/\\sqrt\[([^\]]+)\]\{([^}]+)\}/g, '(($2)^(1/($1)))');
+            expr = expr.replace(/\\sqrt\{([^}]+)\}/g, 'sqrt($1)');
+
+            // Handle trig functions
+            expr = expr.replace(/\\sec/g, '(1/cos');
+            expr = expr.replace(/\\csc/g, '(1/sin');
+            expr = expr.replace(/\\cot/g, '(1/tan');
+            expr = expr.replace(/\\sin/g, 'sin');
+            expr = expr.replace(/\\cos/g, 'cos');
+            expr = expr.replace(/\\tan/g, 'tan');
+            
+            // Close sec, csc, cot
+            expr = expr.replace(/\(1\/(cos|sin|tan)\s+/g, '(1/$1(');
+
+            // Handle inverse trig
+            expr = expr.replace(/\\tan\^\{-1\}/g, 'atan');
+            expr = expr.replace(/\\sin\^\{-1\}/g, 'asin');
+            expr = expr.replace(/\\cos\^\{-1\}/g, 'acos');
+
+            // Handle log functions
+            expr = expr.replace(/\\ln/g, 'log');
+            expr = expr.replace(/\\log/g, 'log10');
+
+            // Handle exp
+            expr = expr.replace(/e\^\{([^}]+)\}/g, 'exp($1)');
+            expr = expr.replace(/e\^([a-z0-9])/gi, 'exp($1)');
+
+            // Handle superscripts
+            expr = expr.replace(/\^\{([^}]+)\}/g, '^($1)');
+            expr = expr.replace(/\^(\d)/g, '^$1');
+
+            // Handle subscripts (remove)
+            expr = expr.replace(/_\{[^}]+\}/g, '');
+            expr = expr.replace(/_./g, '');
+
+            // Constants
+            expr = expr.replace(/\\pi/g, 'pi');
+            expr = expr.replace(/\\infty/g, 'Infinity');
+
+            // Parentheses
+            expr = expr.replace(/\\left\(/g, '(');
+            expr = expr.replace(/\\right\)/g, ')');
+            expr = expr.replace(/\\left\[/g, '[');
+            expr = expr.replace(/\\right\]/g, ']');
+            expr = expr.replace(/\\left/g, '');
+            expr = expr.replace(/\\right/g, '');
+
+            // Clean up
+            expr = expr.replace(/\\/g, '');
+            expr = expr.replace(/[{}]/g, '');
+            expr = expr.replace(/\s+/g, '');
+
+            // Handle implicit multiplication
+            expr = expr.replace(/(\d)(pi|e|x|y|z|\()/gi, '$1*$2');
+            expr = expr.replace(/\)([\d(xyz])/gi, ')*$1');
+            expr = expr.replace(/(pi|e)\(/gi, '$1*(');
+
+            return expr;
+        }
+
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.classList.add('show');
+
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 2000);
+        }
+    </script>
+</body>
+
+</html>
